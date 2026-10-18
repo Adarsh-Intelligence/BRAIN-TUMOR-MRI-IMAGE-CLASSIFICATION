@@ -1,0 +1,22 @@
+# Raw dataset (kept locally, never committed)
+DATASET FOR NEROSCAN AI/
+
+# Large model files
+artifacts/models/
+*.keras
+*.h5
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

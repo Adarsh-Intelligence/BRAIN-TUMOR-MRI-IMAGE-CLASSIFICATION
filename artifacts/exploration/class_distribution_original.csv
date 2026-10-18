@@ -1,0 +1,6 @@
+class_name,test,train,val,total
+glioma,80,564,161,805
+meningioma,63,358,124,545
+no_tumor,49,335,99,483
+pituitary,54,438,118,610
+total,246,1695,502,2443

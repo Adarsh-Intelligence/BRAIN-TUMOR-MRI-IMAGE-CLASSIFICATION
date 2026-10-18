@@ -1,0 +1,42 @@
+{
+  "dataset_dir": "DATASET FOR NEROSCAN AI",
+  "class_names": [
+    "glioma",
+    "meningioma",
+    "no_tumor",
+    "pituitary"
+  ],
+  "total_files": 2443,
+  "unreadable_files": 0,
+  "csv_label_mismatches": 0,
+  "unique_source_stems": 2091,
+  "unique_md5": 2443,
+  "duplicate_groups": 1606,
+  "exact_duplicate_pairs": 0,
+  "near_duplicate_pairs": 704,
+  "phash_threshold": 4,
+  "original_split_leakage": {
+    "source_stem": 164,
+    "md5": 0,
+    "group_id": 272
+  },
+  "excluded_label_conflict_images": 0,
+  "images_in_new_split": 2443,
+  "new_split_counts": {
+    "train": 1699,
+    "test": 384,
+    "val": 360
+  },
+  "new_split_fraction": {
+    "train": 0.6955,
+    "test": 0.1572,
+    "val": 0.1474
+  },
+  "per_class_total": {
+    "glioma": 805,
+    "pituitary": 610,
+    "meningioma": 545,
+    "no_tumor": 483
+  },
+  "imbalance_ratio_max_min": 1.667
+}

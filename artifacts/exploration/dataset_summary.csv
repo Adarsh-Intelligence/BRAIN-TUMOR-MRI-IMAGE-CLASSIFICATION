@@ -1,0 +1,2 @@
+dataset_dir,total_files,unreadable_files,csv_label_mismatches,unique_source_stems,unique_md5,duplicate_groups,exact_duplicate_pairs,near_duplicate_pairs,phash_threshold,excluded_label_conflict_images,images_in_new_split,imbalance_ratio_max_min
+DATASET FOR NEROSCAN AI,2443,0,0,2091,2443,1606,0,704,4,0,2443,1.667

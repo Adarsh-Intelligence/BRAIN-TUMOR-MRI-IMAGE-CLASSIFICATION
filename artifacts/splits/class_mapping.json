@@ -1,0 +1,14 @@
+{
+  "class_names": [
+    "glioma",
+    "meningioma",
+    "no_tumor",
+    "pituitary"
+  ],
+  "class_to_index": {
+    "glioma": 0,
+    "meningioma": 1,
+    "no_tumor": 2,
+    "pituitary": 3
+  }
+}
