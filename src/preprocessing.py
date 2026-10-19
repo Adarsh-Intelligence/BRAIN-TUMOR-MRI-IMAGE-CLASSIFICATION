@@ -112,3 +112,56 @@ def compute_class_weights(labels: np.ndarray, n_classes: int) -> dict[int, float
     if (counts == 0).any():
         raise ValueError(f"Some classes have no training samples: {counts}")
     return {i: float(len(labels) / (n_classes * c)) for i, c in enumerate(counts)}
+
+
+def validate_brain_mri(img: np.ndarray) -> tuple[bool, str, dict]:
+    """Validate if an image matches physical and clinical characteristics of a Brain MRI scan.
+
+    Rejects non-medical images (landscapes, nature, general color photos, blank images).
+    """
+    stats = {}
+    # 1. Color divergence check
+    diff_rg = float(np.mean(np.abs(img[:, :, 0].astype(float) - img[:, :, 1].astype(float))))
+    diff_rb = float(np.mean(np.abs(img[:, :, 0].astype(float) - img[:, :, 2].astype(float))))
+    color_diff = (diff_rg + diff_rb) / 2.0
+    stats["color_variance"] = color_diff
+
+    if color_diff > 10.0:
+        return (
+            False,
+            f"Color photo detected (color variance = {color_diff:.1f} > 10.0). Brain MRI scans are grayscale medical images.",
+            stats,
+        )
+
+    # 2. Dark corner/background check
+    h, w = img.shape[:2]
+    cw, ch = max(5, int(w * 0.06)), max(5, int(h * 0.06))
+    corners = np.concatenate([
+        img[:ch, :cw].flatten(),
+        img[:ch, -cw:].flatten(),
+        img[-ch:, :cw].flatten(),
+        img[-ch:, -cw:].flatten(),
+    ])
+    mean_corner = float(np.mean(corners))
+    stats["corner_brightness"] = mean_corner
+
+    if mean_corner > 62.0:
+        return (
+            False,
+            f"Non-medical background detected (corner brightness = {mean_corner:.1f} > 62.0). Brain MRI scans have a dark scanner field-of-view surrounding the skull.",
+            stats,
+        )
+
+    # 3. Dynamic range / contrast check
+    gray = np.mean(img, axis=-1)
+    std_contrast = float(np.std(gray))
+    stats["contrast_std"] = std_contrast
+
+    if std_contrast < 15.0:
+        return (
+            False,
+            f"Low contrast or blank image (contrast std = {std_contrast:.1f} < 15.0).",
+            stats,
+        )
+
+    return True, "Valid Brain MRI Scan", stats

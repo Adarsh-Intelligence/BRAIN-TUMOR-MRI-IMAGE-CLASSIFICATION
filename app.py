@@ -200,6 +200,61 @@ def get_sample_images():
         return {}
 
 
+def validate_brain_mri(img: np.ndarray) -> tuple[bool, str, dict]:
+    """Validate if an uploaded image matches physical & clinical characteristics of a Brain MRI scan.
+
+    1. Monochrome check: MRI scans are stored as grayscale (R ≈ G ≈ B). Color photos (landscapes, nature, objects) fail.
+    2. Border check: Brain MRI scanner FOV has dark/black background corners outside the skull.
+    3. Contrast check: Rejects blank, uniform or washed-out images.
+    """
+    stats = {}
+    # 1. Color divergence check
+    diff_rg = float(np.mean(np.abs(img[:, :, 0].astype(float) - img[:, :, 1].astype(float))))
+    diff_rb = float(np.mean(np.abs(img[:, :, 0].astype(float) - img[:, :, 2].astype(float))) )
+    color_diff = (diff_rg + diff_rb) / 2.0
+    stats["color_variance"] = color_diff
+
+    if color_diff > 10.0:
+        return (
+            False,
+            f"Color photo detected (color variance = {color_diff:.1f} > 10.0). Brain MRI scans are grayscale medical images.",
+            stats,
+        )
+
+    # 2. Dark corner/background check
+    h, w = img.shape[:2]
+    cw, ch = max(5, int(w * 0.06)), max(5, int(h * 0.06))
+    corners = np.concatenate([
+        img[:ch, :cw].flatten(),
+        img[:ch, -cw:].flatten(),
+        img[-ch:, :cw].flatten(),
+        img[-ch:, -cw:].flatten(),
+    ])
+    mean_corner = float(np.mean(corners))
+    stats["corner_brightness"] = mean_corner
+
+    if mean_corner > 62.0:
+        return (
+            False,
+            f"Non-medical background detected (corner brightness = {mean_corner:.1f} > 62.0). Brain MRI scans have a dark scanner field-of-view surrounding the skull.",
+            stats,
+        )
+
+    # 3. Dynamic range / contrast check
+    gray = np.mean(img, axis=-1)
+    std_contrast = float(np.std(gray))
+    stats["contrast_std"] = std_contrast
+
+    if std_contrast < 15.0:
+        return (
+            False,
+            f"Low contrast or blank image (contrast std = {std_contrast:.1f} < 15.0).",
+            stats,
+        )
+
+    return True, "Valid Brain MRI Scan", stats
+
+
 # ----------------------------------------------------------------------------- Header
 st.markdown(
     """
@@ -258,6 +313,14 @@ with st.sidebar:
             st.warning("⚠️ **Note**: This is a 1-epoch sanity smoke checkpoint.")
         if "params" in meta:
             st.caption(f"**Total Parameters**: `{meta['params']:,}`")
+
+    st.markdown("---")
+    st.markdown("### 🛡️ Clinical Safeguards")
+    strict_mri_check = st.checkbox(
+        "Strict Brain MRI Validation",
+        value=True,
+        help="Rejects non-medical images (landscapes, nature, general photos) to prevent false diagnoses.",
+    )
 
     st.markdown("---")
     st.markdown("### 🔬 Explainability (Grad-CAM)")
@@ -320,61 +383,85 @@ with tab_diag:
         if input_image_arr is None:
             st.info("👈 Please select or upload an MRI scan on the left to run inference.")
         else:
-            with st.spinner("Analyzing scan and computing gradients..."):
-                cam, class_idx, probs = G.gradcam_heatmap(model, input_image_arr.astype(np.float32))
-                pred_class = class_names[class_idx]
-                confidence = float(probs[class_idx])
+            is_valid_mri, val_msg, val_stats = validate_brain_mri(input_image_arr)
 
-                # Colormap conversion for overlay
-                cv2_cmap = getattr(cv2, f"COLORMAP_{colormap_choice}", cv2.COLORMAP_JET)
-                heat = cv2.resize(cam.astype("float32"), (input_image_arr.shape[1], input_image_arr.shape[0]))
-                heat = cv2.applyColorMap(np.uint8(255 * heat), cv2_cmap)[..., ::-1]
-                blended = np.uint8(np.clip((1 - cam_alpha) * input_image_arr + cam_alpha * heat, 0, 255))
-
-            details = CLASS_DETAILS.get(pred_class, {"title": pred_class, "css": "diag-glioma", "desc": "", "icon": "🔍"})
-
-            # Result Banner
-            st.markdown(
-                f"""
-                <div class="diagnosis-box {details['css']}">
-                    <div style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
-                        Diagnosis Assessment
+            if strict_mri_check and not is_valid_mri:
+                st.markdown(
+                    f"""
+                    <div style="background: rgba(239, 68, 68, 0.12); border: 1.5px solid rgba(239, 68, 68, 0.45); border-radius: 14px; padding: 1.6rem; margin-top: 0.5rem; color: #fca5a5;">
+                        <div style="font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                            🚫 Non-Brain MRI Image Detected
+                        </div>
+                        <p style="margin: 0.8rem 0 0.5rem 0; font-size: 0.95rem; line-height: 1.5; color: #fecaca;">
+                            <strong>Validation Check Failed:</strong> {val_msg}
+                        </p>
+                        <hr style="border: 0; border-top: 1px solid rgba(239, 68, 68, 0.25); margin: 0.8rem 0;" />
+                        <div style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.5;">
+                            ⚠️ <strong>Clinical Safety Gate:</strong> NeuroScan-AI is strictly designed for axial, coronal, and sagittal <strong>Brain MRI scans</strong>.
+                            Photos of landscapes, land/nature, everyday objects, or general photographs are automatically blocked to prevent dangerous false-positive or false-negative diagnoses.
+                        </div>
                     </div>
-                    <div style="font-size: 1.8rem; font-weight: 800; margin: 0.3rem 0;">
-                        {details['icon']} {details['title']}
+                    """,
+                    unsafe_allow_html=True,
+                )
+                with st.expander("🔍 View Technical Signal Analysis"):
+                    st.json(val_stats)
+            else:
+                with st.spinner("Analyzing scan and computing gradients..."):
+                    cam, class_idx, probs = G.gradcam_heatmap(model, input_image_arr.astype(np.float32))
+                    pred_class = class_names[class_idx]
+                    confidence = float(probs[class_idx])
+
+                    # Colormap conversion for overlay
+                    cv2_cmap = getattr(cv2, f"COLORMAP_{colormap_choice}", cv2.COLORMAP_JET)
+                    heat = cv2.resize(cam.astype("float32"), (input_image_arr.shape[1], input_image_arr.shape[0]))
+                    heat = cv2.applyColorMap(np.uint8(255 * heat), cv2_cmap)[..., ::-1]
+                    blended = np.uint8(np.clip((1 - cam_alpha) * input_image_arr + cam_alpha * heat, 0, 255))
+
+                details = CLASS_DETAILS.get(pred_class, {"title": pred_class, "css": "diag-glioma", "desc": "", "icon": "🔍"})
+
+                # Result Banner
+                st.markdown(
+                    f"""
+                    <div class="diagnosis-box {details['css']}">
+                        <div style="font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                            Diagnosis Assessment
+                        </div>
+                        <div style="font-size: 1.8rem; font-weight: 800; margin: 0.3rem 0;">
+                            {details['icon']} {details['title']}
+                        </div>
+                        <div style="font-size: 1.05rem;">
+                            Model Confidence: <strong>{confidence * 100:.2f}%</strong>
+                            {f' | Ground Truth: <strong>{true_label.replace("_", " ").title()}</strong>' if true_label else ''}
+                        </div>
+                        <p style="margin: 0.6rem 0 0 0; font-size: 0.88rem; opacity: 0.9;">
+                            {details['desc']}
+                        </p>
                     </div>
-                    <div style="font-size: 1.05rem;">
-                        Model Confidence: <strong>{confidence * 100:.2f}%</strong>
-                        {f' | Ground Truth: <strong>{true_label.replace("_", " ").title()}</strong>' if true_label else ''}
-                    </div>
-                    <p style="margin: 0.6rem 0 0 0; font-size: 0.88rem; opacity: 0.9;">
-                        {details['desc']}
-                    </p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+                    """,
+                    unsafe_allow_html=True,
+                )
 
-            # Class Probability Distribution
-            st.markdown("##### Class Probability Distribution")
-            prob_df = pd.DataFrame({
-                "Class": [c.replace("_", " ").title() for c in class_names],
-                "Probability": [float(p) for p in probs],
-            })
-            st.bar_chart(prob_df.set_index("Class"), color="#6366F1", height=180)
+                # Class Probability Distribution
+                st.markdown("##### Class Probability Distribution")
+                prob_df = pd.DataFrame({
+                    "Class": [c.replace("_", " ").title() for c in class_names],
+                    "Probability": [float(p) for p in probs],
+                })
+                st.bar_chart(prob_df.set_index("Class"), color="#6366F1", height=180)
 
-            # Grad-CAM Side-by-Side
-            st.markdown("##### Visual Attention (Grad-CAM Overlay)")
-            gcol1, gcol2 = st.columns(2)
-            with gcol1:
-                st.image(blended, caption="Grad-CAM Overlay", use_container_width=True)
-            with gcol2:
-                st.image(heat, caption=f"Heatmap ({colormap_choice})", use_container_width=True)
+                # Grad-CAM Side-by-Side
+                st.markdown("##### Visual Attention (Grad-CAM Overlay)")
+                gcol1, gcol2 = st.columns(2)
+                with gcol1:
+                    st.image(blended, caption="Grad-CAM Overlay", use_container_width=True)
+                with gcol2:
+                    st.image(heat, caption=f"Heatmap ({colormap_choice})", use_container_width=True)
 
-            st.caption(
-                "💡 **Clinical Context**: Grad-CAM highlights coarse convolutional feature activation regions that contributed "
-                "most strongly to this classification score. It is an explanatory attribution, not an automated surgical segmentation."
-            )
+                st.caption(
+                    "💡 **Clinical Context**: Grad-CAM highlights coarse convolutional feature activation regions that contributed "
+                    "most strongly to this classification score. It is an explanatory attribution, not an automated surgical segmentation."
+                )
 
 # ============================================================================= TAB 2: Dataset Explorer
 with tab_batch:

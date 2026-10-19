@@ -78,3 +78,29 @@ def test_eval_pipeline_is_deterministic(tmp_path):
     a = next(iter(P.make_dataset(df, batch_size=6)))[0].numpy()
     b = next(iter(P.make_dataset(df, batch_size=6)))[0].numpy()
     assert np.array_equal(a, b)
+
+
+def test_validate_brain_mri_accepts_valid_and_rejects_non_mri():
+    # 1. Valid synthetic MRI (grayscale with dark corners and high central contrast)
+    valid_mri = np.zeros((224, 224, 3), dtype=np.uint8)
+    # central brain structure
+    valid_mri[40:180, 40:180] = 160
+    ok, msg, _ = P.validate_brain_mri(valid_mri)
+    assert ok, f"Expected valid MRI to pass, failed with: {msg}"
+
+    # 2. Reject color photo (e.g. landscape with blue sky, green ground)
+    landscape = np.zeros((224, 224, 3), dtype=np.uint8)
+    landscape[:, :] = [70, 150, 220]  # distinct R, G, B
+    ok_l, msg_l, _ = P.validate_brain_mri(landscape)
+    assert not ok_l
+    assert "Color photo detected" in msg_l
+
+    # 3. Reject bright background non-medical photo
+    bright_photo = np.full((224, 224, 3), 180, dtype=np.uint8)
+    ok_b, msg_b, _ = P.validate_brain_mri(bright_photo)
+    assert not ok_b
+
+    # 4. Reject blank image
+    blank = np.zeros((224, 224, 3), dtype=np.uint8)
+    ok_blank, msg_blank, _ = P.validate_brain_mri(blank)
+    assert not ok_blank
