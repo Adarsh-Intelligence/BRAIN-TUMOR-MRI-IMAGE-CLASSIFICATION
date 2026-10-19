@@ -94,6 +94,12 @@ python -m src.compare_models
 python -m src.gradcam --model efficientnet --n 8
 ```
 
+### 6. Launch Streamlit Web UI
+```bash
+streamlit run app.py
+```
+*(Provides an interactive web dashboard for uploading MRI scans, predicting tumors, and viewing real-time Grad-CAM attention heatmaps)*
+
 ---
 
 ## 📁 Repository Structure

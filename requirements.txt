@@ -17,3 +17,4 @@ jupyter>=1.0
 ipykernel>=6.0
 nbformat>=5.9
 nbconvert>=7.0
+streamlit>=1.30
