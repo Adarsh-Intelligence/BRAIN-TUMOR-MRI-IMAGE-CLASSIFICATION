@@ -1,5 +1,12 @@
 # 🧠 NeuroScan-AI: Brain Tumor MRI Classification
 
+[![Developer](https://img.shields.io/badge/Developer-Adarsh%20Dwivedi-blue?style=for-the-badge&logo=github)](https://github.com/Adarsh-Intelligence)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-NeuroScan--AI-181717?style=for-the-badge&logo=github)](https://github.com/Adarsh-Intelligence/NeuroScan-AI)
+[![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)](https://www.tensorflow.org/)
+
+Architected and developed by **[Adarsh Dwivedi](https://github.com/Adarsh-Intelligence)**.
+
 Deep learning pipeline for detecting and classifying brain tumor types from MRI scans into 4 categories:
 - **Glioma**
 - **Meningioma**
@@ -110,3 +117,13 @@ python -m src.gradcam --model efficientnet --n 8
 ├── tests/                            # Comprehensive pytest test suite
 └── artifacts/                        # Splits, models, logs, metrics & figures
 ```
+
+---
+
+## 👨‍💻 Developer & Author
+
+**Adarsh Dwivedi**
+- **GitHub**: [@Adarsh-Intelligence](https://github.com/Adarsh-Intelligence)
+- **Repository**: [NeuroScan-AI](https://github.com/Adarsh-Intelligence/NeuroScan-AI)
+
+*Developed as an end-to-end medical deep learning project for reliable brain tumor classification and explainability.*

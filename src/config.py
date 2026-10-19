@@ -1,5 +1,6 @@
 """Central configuration for the NeuroScan AI model-development pipeline.
 
+Developed by Adarsh Dwivedi (@Adarsh-Intelligence).
 All paths are resolved relative to the project root so the same code runs on
 native Windows (``D:\\...``) and inside WSL2 (``/mnt/d/...``).
 """
